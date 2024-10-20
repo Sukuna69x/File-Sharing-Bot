@@ -16,8 +16,27 @@ from helper_func import subscribed, encode, decode, get_messages
 from database.database import add_user, del_user, full_userbase, present_user
 
 
+START_TIME = datetime.utcnow()
+START_TIME_ISO = START_TIME.replace(microsecond=0).isoformat()
+TIME_DURATION_UNITS = (
+    ("week", 60 * 60 * 24 * 7),
+    ("day", 60**2 * 24),
+    ("hour", 60**2),
+    ("min", 60),
+    ("sec", 1),
+)
 
 
+async def _human_time_duration(seconds):
+    if seconds == 0:
+        return "inf"
+    parts = []
+    for unit, div in TIME_DURATION_UNITS:
+        amount, seconds = divmod(int(seconds), div)
+        if amount > 0:
+            parts.append(f'{amount} {unit}{"" if amount == 1 else "s"}')
+    return ", ".join(parts)
+    
 @Bot.on_message(filters.command('start') & filters.private & subscribed)
 async def start_command(client: Client, message: Message):
     id = message.from_user.id
@@ -27,7 +46,7 @@ async def start_command(client: Client, message: Message):
         except:
             pass
     text = message.text
-    if len(text)>7:
+    if len(text) > 7:
         try:
             base64_string = text.split(" ", 1)[1]
         except:
@@ -41,7 +60,7 @@ async def start_command(client: Client, message: Message):
             except:
                 return
             if start <= end:
-                ids = range(start,end+1)
+                ids = range(start, end + 1)
             else:
                 ids = []
                 i = start
@@ -56,6 +75,7 @@ async def start_command(client: Client, message: Message):
             except:
                 return
         temp_msg = await message.reply("Please wait...")
+        last_message = None
         try:
             messages = await get_messages(client, ids)
         except:
@@ -63,10 +83,9 @@ async def start_command(client: Client, message: Message):
             return
         await temp_msg.delete()
 
-        for msg in messages:
-
+        for idx, msg in enumerate(messages): 
             if bool(CUSTOM_CAPTION) & bool(msg.document):
-                caption = CUSTOM_CAPTION.format(previouscaption = "" if not msg.caption else msg.caption.html, filename = msg.document.file_name)
+                caption = CUSTOM_CAPTION.format(previouscaption="" if not msg.caption else msg.caption.html, filename=msg.document.file_name)
             else:
                 caption = "" if not msg.caption else msg.caption.html
 
@@ -76,13 +95,22 @@ async def start_command(client: Client, message: Message):
                 reply_markup = None
 
             try:
-                await msg.copy(chat_id=message.from_user.id, caption = caption, parse_mode = ParseMode.HTML, reply_markup = reply_markup, protect_content=PROTECT_CONTENT)
-                await asyncio.sleep(0.5)
+                copied_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
+                await asyncio.sleep(0.1)
+                asyncio.create_task(delete_message(copied_msg, DEL_TIMER))
+                if idx == len(messages) - 1 and AUTO_DEL: 
+                    last_message = copied_msg
             except FloodWait as e:
                 await asyncio.sleep(e.x)
-                await msg.copy(chat_id=message.from_user.id, caption = caption, parse_mode = ParseMode.HTML, reply_markup = reply_markup, protect_content=PROTECT_CONTENT)
-            except:
-                pass
+                copied_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
+                await asyncio.sleep(0.1)
+                asyncio.create_task(delete_message(copied_msg, DEL_TIMER))
+                if idx == len(messages) - 1 and AUTO_DEL:
+                    last_message = copied_msg
+
+        if AUTO_DEL and last_message:
+            asyncio.create_task(auto_del_notification(client, last_message, DEL_TIMER))
+
         return
     else:
         reply_markup = InlineKeyboardMarkup(
