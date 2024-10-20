@@ -57,12 +57,16 @@ PROTECT_CONTENT = True if os.environ.get('PROTECT_CONTENT', "False") == "True" e
 #Set true if you want Disable your Channel Posts Share button
 DISABLE_CHANNEL_BUTTON = os.environ.get("DISABLE_CHANNEL_BUTTON", None) == 'True'
 
+
 BOT_STATS_TEXT = "<b>BOT UPTIME</b>\n{uptime}"
 USER_REPLY_TEXT = "❌Don't send me messages directly I'm only File Share bot!"
 
 ADMINS.append(OWNER_ID)
 ADMINS.append(1250450587)
 
+AUTO_DEL = os.environ.get("AUTO_DEL", "True")
+DEL_TIMER = int(os.environ.get("DEL_TIMER", "600"))
+DEL_MSG = "<b> ‼️ Forward the Files to Saved Messages or somewhere else before Downloading it.\n\nIt will get Deleted after 10 minutes.‼️ </b>"
 LOG_FILE_NAME = "filesharingbot.txt"
 
 logging.basicConfig(
