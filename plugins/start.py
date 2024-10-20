@@ -1,19 +1,18 @@
-#(©)CodeXBotz
-
-
-
-
 import os
 import asyncio
 from pyrogram import Client, filters, __version__
 from pyrogram.enums import ParseMode
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated
+from time import time
+from datetime import datetime
 
 from bot import Bot
-from config import ADMINS, FORCE_MSG, START_MSG, CUSTOM_CAPTION, DISABLE_CHANNEL_BUTTON, PROTECT_CONTENT
+from config import FORCE_MSG, OWNER_ID, START_MSG, CUSTOM_CAPTION, DISABLE_CHANNEL_BUTTON, PROTECT_CONTENT, AUTO_DEL, DEL_TIMER, DEL_MSG, START_PIC, FORCE_PIC
 from helper_func import subscribed, encode, decode, get_messages
 from database.database import add_user, del_user, full_userbase, present_user
+from database.database import present_admin
+from plugins.autodelete import convert_time
 
 
 START_TIME = datetime.utcnow()
@@ -113,16 +112,16 @@ async def start_command(client: Client, message: Message):
 
         return
     else:
-        reply_markup = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("😊 About Me", callback_data = "about"),
-                    InlineKeyboardButton("🔒 Close", callback_data = "close")
-                ]
-            ]
-        )
-        await message.reply_text(
-            text = START_MSG.format(
+        reply_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("ʜᴇʟᴘ", callback_data='help'),
+             InlineKeyboardButton("ᴀʙᴏᴜᴛ", callback_data='about')],
+            [InlineKeyboardButton('ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ', url='https://t.me/AnimeX_Hyper'),
+             InlineKeyboardButton('ᴏɴɢᴏɪɴɢ ᴄʜᴀɴɴᴇʟ', url='https://t.me/Ongoing_Anime_Hyper')],
+            [InlineKeyboardButton("ᴄʟᴏꜱᴇ", callback_data='close')]
+        ])
+        await message.reply_photo(
+            photo = START_PIC,
+            caption = START_MSG.format(
                 first = message.from_user.first_name,
                 last = message.from_user.last_name,
                 username = None if not message.from_user.username else '@' + message.from_user.username,
@@ -130,64 +129,67 @@ async def start_command(client: Client, message: Message):
                 id = message.from_user.id
             ),
             reply_markup = reply_markup,
-            disable_web_page_preview = True,
-            quote = True
+            
         )
         return
 
-    
-#=====================================================================================##
-
-WAIT_MSG = """"<b>Processing ...</b>"""
-
-REPLY_ERROR = """<code>Use this command as a replay to any telegram message with out any spaces.</code>"""
 
 #=====================================================================================##
 
-    
-    
+WAIT_MSG = "<b>Working....</b>"
+
+REPLY_ERROR = "<code>Use this command as a reply to any telegram message without any spaces.</code>"
+
+#=====================================================================================##
+
 @Bot.on_message(filters.command('start') & filters.private)
 async def not_joined(client: Client, message: Message):
     buttons = [
         [
-            InlineKeyboardButton(text="⚡Join Channel ⚡", url="https://m.indiamart.com/proddetail/26099991430.html?utm_source=rottenf7933&utm_medium=affiliate&utm_campaign=1024&utm_content=15"),
+            InlineKeyboardButton(text="⚡ Join channel ⚡", url="https://m.indiamart.com/proddetail/26099991430.html?utm_source=rottenf7933&utm_medium=affiliate&utm_campaign=1024&utm_content=15"),
         ],
         [
-            InlineKeyboardButton(text="⚡Join Channel ⚡", url=client.invitelink),
+            InlineKeyboardButton(text="⚡ Join Channel ⚡", url=client.invitelink),
         ]
     ]
     try:
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text = 'Try again 😴',
-                    url = f"https://t.me/{client.username}?start={message.command[1]}"
+                    text='ᴛʀʏ ᴀɢᴀɪɴ',
+                    url=f"https://t.me/{client.username}?start={message.command[1]}"
                 )
             ]
         )
     except IndexError:
         pass
 
-    await message.reply(
-        text = FORCE_MSG.format(
-                first = message.from_user.first_name,
-                last = message.from_user.last_name,
-                username = None if not message.from_user.username else '@' + message.from_user.username,
-                mention = message.from_user.mention,
-                id = message.from_user.id
-            ),
-        reply_markup = InlineKeyboardMarkup(buttons),
-        quote = True,
-        disable_web_page_preview = True
+    await message.reply_photo(
+        photo=FORCE_PIC,
+        caption=FORCE_MSG.format(
+            first=message.from_user.first_name,
+            last=message.from_user.last_name,
+            username=None if not message.from_user.username else '@' + message.from_user.username,
+            mention=message.from_user.mention,
+            id=message.from_user.id
+        ),
+        reply_markup=InlineKeyboardMarkup(buttons)
     )
-
-@Bot.on_message(filters.command('users') & filters.private & filters.user(ADMINS))
+    
+@Bot.on_message(filters.command('users') & filters.private)
 async def get_users(client: Bot, message: Message):
+    user_id = message.from_user.id
+    is_admin = await present_admin(user_id)
+    
+    if not is_admin:
+        await message.reply_text("Only admins can use this command.")
+        return
+    
     msg = await client.send_message(chat_id=message.chat.id, text=WAIT_MSG)
     users = await full_userbase()
     await msg.edit(f"{len(users)} users are using this bot")
 
-@Bot.on_message(filters.private & filters.command('broadcast') & filters.user(ADMINS))
+@Bot.on_message(filters.private & filters.command('broadcast') & filters.user(OWNER_ID))
 async def send_text(client: Bot, message: Message):
     if message.reply_to_message:
         query = await full_userbase()
@@ -198,7 +200,7 @@ async def send_text(client: Bot, message: Message):
         deleted = 0
         unsuccessful = 0
         
-        pls_wait = await message.reply("<i>Broadcasting Message.. This will Take Some Time</i>")
+        pls_wait = await message.reply("<i>Broadcast Proccessing Till Wait Dude... </i>")
         for chat_id in query:
             try:
                 await broadcast_msg.copy(chat_id)
@@ -218,7 +220,7 @@ async def send_text(client: Bot, message: Message):
                 pass
             total += 1
         
-        status = f"""<b><u>Broadcast Completed</u>
+        status = f"""<b><u>ʙʀᴏᴀᴅᴄᴀꜱᴛ...</u>
 
 Total Users: <code>{total}</code>
 Successful: <code>{successful}</code>
@@ -232,3 +234,14 @@ Unsuccessful: <code>{unsuccessful}</code></b>"""
         msg = await message.reply(REPLY_ERROR)
         await asyncio.sleep(8)
         await msg.delete()
+
+async def auto_del_notification(client, msg, delay_time):
+    if AUTO_DEL.lower() == "true":  
+        await msg.reply_text(DEL_MSG.format(time=convert_time(DEL_TIMER))) 
+        await asyncio.sleep(delay_time)
+        await msg.delete()
+           
+async def delete_message(msg, delay_time):
+    if AUTO_DEL.lower() == "true": 
+        await asyncio.sleep(delay_time)    
+        await msg.delete() 
