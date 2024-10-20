@@ -1,19 +1,18 @@
-#(©)Codexbotz
-
 from aiohttp import web
 from plugins import web_server
 
 import pyromod.listen
-import pyrogram.utils
 from pyrogram import Client
+import pyrogram.utils
 from pyrogram.enums import ParseMode
 import sys
 from datetime import datetime
+from database.database import present_channel, present_channel2
 
-from config import API_HASH, APP_ID, LOGGER, TG_BOT_TOKEN, TG_BOT_WORKERS, FORCE_SUB_CHANNEL_1, FORCE_SUB_CHANNEL_2, FORCE_SUB_CHANNEL_3, FORCE_SUB_CHANNEL_4, CHANNEL_ID, PORT
+from config import API_HASH, APP_ID, LOGGER, TG_BOT_TOKEN, TG_BOT_WORKERS, CHANNEL_ID, PORT
+
 
 pyrogram.utils.MIN_CHANNEL_ID = -1009147483647
-
 class Bot(Client):
     def __init__(self):
         super().__init__(
@@ -33,57 +32,36 @@ class Bot(Client):
         usr_bot_me = await self.get_me()
         self.uptime = datetime.now()
 
-        if FORCE_SUB_CHANNEL_1:
+        # Assuming add_1 and add_2 functions return the channel IDs for forced subscriptions
+        self.FORCESUB_CHANNEL = await present_channel()
+        self.FORCESUB_CHANNEL2 = await present_channel2()
+
+        if self.FORCESUB_CHANNEL:
             try:
-                link = (await self.get_chat(FORCE_SUB_CHANNEL_1)).invite_link
+                link = (await self.get_chat(self.FORCESUB_CHANNEL)).invite_link
                 if not link:
-                    await self.export_chat_invite_link(FORCE_SUB_CHANNEL_1)
-                    link = (await self.get_chat(FORCE_SUB_CHANNEL_1)).invite_link
-                self.invitelink = link
+                    await self.export_chat_invite_link(self.FORCESUB_CHANNEL)
+                    link = (await self.get_chat(self.FORCESUB_CHANNEL)).invite_link
+                self.invitelink1 = link
             except Exception as a:
                 self.LOGGER(__name__).warning(a)
-                self.LOGGER(__name__).warning("Bot can't Export Invite link from Force Sub Channel!")
-                self.LOGGER(__name__).warning(f"Please Double check the FORCE_SUB_CHANNEL_1 value and Make sure Bot is Admin in channel with Invite Users via Link Permission, Current Force Sub Channel Value: {FORCE_SUB_CHANNEL_1}")
-                self.LOGGER(__name__).info("\nBot Stopped. Join https://t.me/Eren_is_Yeager for support")
+                self.LOGGER(__name__).warning("Bot can't export invite link from Force Sub Channel 1!")
+                self.LOGGER(__name__).warning(f"Please double check the channel ID and make sure the bot is an admin in the channel with 'Invite Users via Link' permission. Current Channel ID: {self.FORCESUB_CHANNEL}")
+                self.LOGGER(__name__).info("\nBot Stopped. Join https://t.me/Hunters_Discussion for support")
                 sys.exit()
-        if FORCE_SUB_CHANNEL_2:
+
+        if self.FORCESUB_CHANNEL2:
             try:
-                link = (await self.get_chat(FORCE_SUB_CHANNEL_2)).invite_link
+                link = (await self.get_chat(self.FORCESUB_CHANNEL2)).invite_link
                 if not link:
-                    await self.export_chat_invite_link(FORCE_SUB_CHANNEL_2)
-                    link = (await self.get_chat(FORCE_SUB_CHANNEL_2)).invite_link
+                    await self.export_chat_invite_link(self.FORCESUB_CHANNEL2)
+                    link = (await self.get_chat(self.FORCESUB_CHANNEL2)).invite_link
                 self.invitelink2 = link
             except Exception as a:
                 self.LOGGER(__name__).warning(a)
-                self.LOGGER(__name__).warning("Bot can't Export Invite link from Force Sub Channel!")
-                self.LOGGER(__name__).warning(f"Please Double check the FORCE_SUB_CHANNEL_2 value and Make sure Bot is Admin in channel with Invite Users via Link Permission, Current Force Sub Channel Value: {FORCE_SUB_CHANNEL_2}")
-                self.LOGGER(__name__).info("\nBot Stopped. Join https://t.me/Eren_is_Yeager for support")
-                sys.exit()
-        if FORCE_SUB_CHANNEL_3:
-            try:
-                link = (await self.get_chat(FORCE_SUB_CHANNEL_3)).invite_link
-                if not link:
-                    await self.export_chat_invite_link(FORCE_SUB_CHANNEL_3)
-                    link = (await self.get_chat(FORCE_SUB_CHANNEL_3)).invite_link
-                self.invitelink3 = link
-            except Exception as a:
-                self.LOGGER(__name__).warning(a)
-                self.LOGGER(__name__).warning("Bot can't Export Invite link from Force Sub Channel!")
-                self.LOGGER(__name__).warning(f"Please Double check the FORCE_SUB_CHANNEL_3 value and Make sure Bot is Admin in channel with Invite Users via Link Permission, Current Force Sub Channel Value: {FORCE_SUB_CHANNEL_3}")
-                self.LOGGER(__name__).info("\nBot Stopped. Join https://t.me/Eren_is_Yeager for support")
-                sys.exit()
-        if FORCE_SUB_CHANNEL_4:
-            try:
-                link = (await self.get_chat(FORCE_SUB_CHANNEL_4)).invite_link
-                if not link:
-                    await self.export_chat_invite_link(FORCE_SUB_CHANNEL_4)
-                    link = (await self.get_chat(FORCE_SUB_CHANNEL_4)).invite_link
-                self.invitelink4 = link
-            except Exception as a:
-                self.LOGGER(__name__).warning(a)
-                self.LOGGER(__name__).warning("Bot can't Export Invite link from Force Sub Channel!")
-                self.LOGGER(__name__).warning(f"Please Double check the FORCE_SUB_CHANNEL_4 value and Make sure Bot is Admin in channel with Invite Users via Link Permission, Current Force Sub Channel Value: {FORCE_SUB_CHANNEL_4}")
-                self.LOGGER(__name__).info("\nBot Stopped. Join https://t.me/Eren_is_Yeager for support")
+                self.LOGGER(__name__).warning("Bot can't export invite link from Force Sub Channel 2!")
+                self.LOGGER(__name__).warning(f"Please double check the channel ID and make sure the bot is an admin in the channel with 'Invite Users via Link' permission. Current Channel ID: {self.FORCESUB_CHANNEL2}")
+                self.LOGGER(__name__).info("\nBot Stopped. Join https://t.me/AnimeX_Chatting for support")
                 sys.exit()
         try:
             db_channel = await self.get_chat(CHANNEL_ID)
@@ -93,18 +71,18 @@ class Bot(Client):
         except Exception as e:
             self.LOGGER(__name__).warning(e)
             self.LOGGER(__name__).warning(f"Make Sure bot is Admin in DB Channel, and Double check the CHANNEL_ID Value, Current Value {CHANNEL_ID}")
-            self.LOGGER(__name__).info("\nBot Stopped. Join https://t.me/CodeXBotzSupport for support")
+            self.LOGGER(__name__).info("\nBot Stopped. Join https://t.me/Animetalks0 for support")
             sys.exit()
 
         self.set_parse_mode(ParseMode.HTML)
-        self.LOGGER(__name__).info(f"Bot Running..!\n\nCreated by \nhttps://t.me/CodeXBotz")
+        self.LOGGER(__name__).info(f"Bot Running..!\n\nCreated by \nhttps://t.me/AnimeX_Hyper")
         self.LOGGER(__name__).info(f""" \n\n       
-░█████╗░░█████╗░██████╗░███████╗██╗░░██╗██████╗░░█████╗░████████╗███████╗
-██╔══██╗██╔══██╗██╔══██╗██╔════╝╚██╗██╔╝██╔══██╗██╔══██╗╚══██╔══╝╚════██║
-██║░░╚═╝██║░░██║██║░░██║█████╗░░░╚███╔╝░██████╦╝██║░░██║░░░██║░░░░░███╔═╝
-██║░░██╗██║░░██║██║░░██║██╔══╝░░░██╔██╗░██╔══██╗██║░░██║░░░██║░░░██╔══╝░░
-╚█████╔╝╚█████╔╝██████╔╝███████╗██╔╝╚██╗██████╦╝╚█████╔╝░░░██║░░░███████╗
-░╚════╝░░╚════╝░╚═════╝░╚══════╝╚═╝░░╚═╝╚═════╝░░╚════╝░░░░╚═╝░░░╚══════╝
+░█████╗░███╗░░██╗██╗███╗░░░███╗███████╗██╗░░██╗██╗░░░██╗███╗░░██╗████████╗███████╗██████╗░░██████╗
+██╔══██╗████╗░██║██║████╗░████║██╔════╝██║░░██║██║░░░██║████╗░██║╚══██╔══╝██╔════╝██╔══██╗██╔════╝
+███████║██╔██╗██║██║██╔████╔██║█████╗░░███████║██║░░░██║██╔██╗██║░░░██║░░░█████╗░░██████╔╝╚█████╗░
+██╔══██║██║╚████║██║██║╚██╔╝██║██╔══╝░░██╔══██║██║░░░██║██║╚████║░░░██║░░░██╔══╝░░██╔══██╗░╚═══██╗
+██║░░██║██║░╚███║██║██║░╚═╝░██║███████╗██║░░██║╚██████╔╝██║░╚███║░░░██║░░░███████╗██║░░██║██████╔╝
+╚═╝░░╚═╝╚═╝░░╚══╝╚═╝╚═╝░░░░░╚═╝╚══════╝╚═╝░░╚═╝░╚═════╝░╚═╝░░╚══╝░░░╚═╝░░░╚══════╝╚═╝░░╚═╝╚═════╝░
                                           """)
         self.username = usr_bot_me.username
         #web-response
